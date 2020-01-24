@@ -10,6 +10,8 @@
 *   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#include "filesystem/path.h"
+#include "dirent.h"
 #include "behaviortree_cpp_v3/bt_factory.h"
 #include "behaviortree_cpp_v3/utils/shared_library.h"
 #include "behaviortree_cpp_v3/xml_parsing.h"
@@ -128,6 +130,57 @@ void BehaviorTreeFactory::registerFromPlugin(const std::string& file_path)
     {
         std::cout << "ERROR loading library [" << file_path << "]: can't find symbol ["
                   << PLUGIN_SYMBOL << "]" << std::endl;
+    }
+}
+
+#ifdef _WIN32
+const char os_pathsep(';');   // NOLINT
+#else
+const char os_pathsep(':');   // NOLINT
+#endif
+
+std::vector<std::string> getBTPluginLibs()
+{
+    std::vector<std::string> lib_paths;
+    const char* env = std::getenv("BT_PLUGINS_PATH");
+    if (env)
+    {
+        const std::string env_bt_plugin_paths(env);
+        std::vector<BT::StringView> bt_plugin_paths =
+            splitString(env_bt_plugin_paths, os_pathsep);
+        for (BT::StringView bt_plugin_path : bt_plugin_paths)
+        {
+	    filesystem::path dirname(bt_plugin_path.to_string());
+	    DIR *dir;
+	    struct dirent *ent;
+	    if ((dir = opendir(dirname.str().c_str())) != NULL) {
+		while ((ent = readdir (dir)) != NULL) {
+		    if (strncmp(ent->d_name, "lib", 3) == 0) {
+			lib_paths.push_back((dirname / ent->d_name).str());
+		    }
+		}
+		closedir (dir);
+	    } else {
+		/* could not open directory */
+		std::cerr << "could not open directory : "
+			  << bt_plugin_path.to_string();
+	    }
+        }
+    }
+    return lib_paths;
+}
+
+void BehaviorTreeFactory::registerFromPlugins()
+{
+    std::vector<std::string> lib_paths = getBTPluginLibs();
+
+    for (const auto& plugin : lib_paths)
+    {
+	const auto full_path = filesystem::path(plugin);
+	if (full_path.exists()) {
+	    std::cout << "Registering plugins from " << full_path.str() << std::endl;
+	    registerFromPlugin(full_path.str());
+        }
     }
 }
 

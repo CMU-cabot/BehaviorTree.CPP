@@ -174,6 +174,11 @@ public:
     void registerFromPlugin(const std::string &file_path);
 
     /**
+     * @brief registerFromPlugins finds all shared libraries that export plugins for behavior tree
+     */
+    void registerFromPlugins();
+
+    /**
      * @brief instantiateTreeNode creates an instance of a previously registered TreeNode.
      *
      * @param name     name of this particular instance
