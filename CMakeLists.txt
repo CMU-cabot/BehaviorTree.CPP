@@ -198,7 +198,9 @@ endif()
 
 ######################################################
 # Test
-add_subdirectory(tests)
+if( BUILD_EXAMPLES )
+  add_subdirectory(tests)
+endif()
 
 ######################################################
 # INSTALL
